@@ -1,0 +1,12 @@
+node_modules/
+.local/
+.cache/
+.upm/
+.pythonlibs/
+artifacts/
+__pycache__/
+*.pyc
+*.zip
+.replit
+replit.nix
+*.log

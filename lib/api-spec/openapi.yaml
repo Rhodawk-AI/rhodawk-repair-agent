@@ -1,0 +1,260 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: TestFixLoop API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: jobs
+    description: TestFixLoop job management
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /jobs:
+    post:
+      operationId: createJob
+      tags: [jobs]
+      summary: Create a new TestFixLoop job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobRequest"
+      responses:
+        "200":
+          description: Job created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobResponse"
+  /jobs/{jobId}:
+    get:
+      operationId: getJob
+      tags: [jobs]
+      summary: Get job status
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobResponse"
+  /jobs/{jobId}/logs:
+    get:
+      operationId: getJobLogs
+      tags: [jobs]
+      summary: Get job logs (SSE stream)
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SSE log stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /jobs/{jobId}/download/{fileType}:
+    get:
+      operationId: downloadJobFile
+      tags: [jobs]
+      summary: Download job output file
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: fileType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [zip, report]
+      responses:
+        "200":
+          description: File download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+  /providers/discover:
+    post:
+      operationId: discoverProviders
+      tags: [jobs]
+      summary: Discover available free OpenRouter models
+      responses:
+        "200":
+          description: Discovered providers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderDiscoveryResponse"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    CreateJobRequest:
+      type: object
+      properties:
+        githubUrl:
+          type: string
+        githubToken:
+          type: string
+        branch:
+          type: string
+          default: main
+        maxCycles:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 20
+        googleApiKey:
+          type: string
+        deepseekApiKey:
+          type: string
+        groqApiKey:
+          type: string
+        openrouterApiKey:
+          type: string
+        anthropicApiKey:
+          type: string
+        offPeakMode:
+          type: boolean
+          default: false
+      required:
+        - githubUrl
+        - githubToken
+    JobResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, success, partial, failed]
+        currentCycle:
+          type: integer
+        maxCycles:
+          type: integer
+        cycles:
+          type: array
+          items:
+            $ref: "#/components/schemas/CycleResult"
+        providerStatus:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderStatus"
+        startedAt:
+          type: string
+        finishedAt:
+          type: string
+        totalTestsPassed:
+          type: integer
+        totalTestsFailed:
+          type: integer
+        downloadAvailable:
+          type: boolean
+        error:
+          type: string
+      required:
+        - jobId
+        - status
+        - currentCycle
+        - maxCycles
+        - cycles
+        - providerStatus
+        - downloadAvailable
+    CycleResult:
+      type: object
+      properties:
+        cycleNumber:
+          type: integer
+        testsPassed:
+          type: integer
+        testsFailed:
+          type: integer
+        testsFixed:
+          type: integer
+        filesChanged:
+          type: array
+          items:
+            type: string
+        providerUsed:
+          type: string
+        tokensConsumed:
+          type: integer
+        wallClockSeconds:
+          type: number
+        status:
+          type: string
+      required:
+        - cycleNumber
+        - testsPassed
+        - testsFailed
+        - testsFixed
+        - filesChanged
+        - providerUsed
+        - tokensConsumed
+        - wallClockSeconds
+        - status
+    ProviderStatus:
+      type: object
+      properties:
+        name:
+          type: string
+        model:
+          type: string
+        status:
+          type: string
+          enum: [active, rate_limited, exhausted, not_configured]
+        tokensUsed:
+          type: integer
+        estimatedLimit:
+          type: integer
+      required:
+        - name
+        - model
+        - status
+        - tokensUsed
+        - estimatedLimit
+    ProviderDiscoveryResponse:
+      type: object
+      properties:
+        models:
+          type: array
+          items:
+            type: string
+      required:
+        - models
